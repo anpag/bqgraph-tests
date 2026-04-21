@@ -76,10 +76,17 @@ LIMIT 5;
 Run this in your CLI to see if the index was actually used:
 
 ```bash
-# Replace with your Job ID
-bq show --format=prettyjson YOUR_JOB_ID
+# This one-liner finds your last search and outputs the plan automatically
+bq show -j --location=US --format=prettyjson bqgraph-test-489809:$(bq query --use_legacy_sql=false --format=csv "SELECT job_id FROM \`bqgraph-test-489809.region-us.INFORMATION_SCHEMA.JOBS_BY_PROJECT\` WHERE query LIKE '%VECTOR_SEARCH%' AND query LIKE '%Account_Large%' ORDER BY creation_time DESC LIMIT 1" | tail -n 1)
 ```
-Look for **`VECTOR_INDEX_SCAN`** in the stages and **`usingIndex: true`**. If you see `READ` on the base table instead, you're still doing a full scan.
+Look for **`"indexUsageMode": "FULLY_USED"`** in the JSON output. If the index wasn't used, it will say `"UNUSED"` and give a `disable_reason`.
 
 ---
-**Note:** When you first create an index or add data, BigQuery needs a few minutes to build it. Check the status in `INFORMATION_SCHEMA.VECTOR_INDEXES`. If `coverage_percentage` isn't 100%, you might still see a full scan.
+**Note:** BigQuery requires your base table to be at least **10MB** (about 500,000 rows of basic embeddings) before it will actually use a Vector Index. If the table is smaller, brute force is faster, so BigQuery intentionally leaves the index `TEMPORARILY DISABLED`.
+
+When you add enough data, BigQuery still needs a few minutes to build it. Check the status:
+```sql
+SELECT index_status, coverage_percentage, disable_reason 
+FROM `bqgraph-test-489809.bqgraph_test.INFORMATION_SCHEMA.VECTOR_INDEXES`
+```
+If `coverage_percentage` isn't 100%, you might still see a full scan.
