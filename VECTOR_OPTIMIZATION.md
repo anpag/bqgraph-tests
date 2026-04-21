@@ -69,8 +69,11 @@ LIMIT 5;
 ```
 
 ### 2. What the metrics mean
-*   **Total Slot MS:** This is your compute time. A brute-force search will have a high `total_slot_ms` because it's doing math on every row. With an index, this number should drop significantly.
-*   **Total Bytes Processed:** If you use Join Elimination (by only selecting stored columns), you'll see this number drop because BigQuery doesn't need to read the full base table.
+**Vector Indexes optimize Compute (Slot MS) and Latency, not Data Scanned.** 
+
+*   **Total Slot MS (The massive win):** This is your compute time. A brute-force search forces BigQuery to execute dense mathematical equations (cosine similarity) on every single row. With an index, BigQuery uses pre-calculated clusters to skip the math on 99% of the rows. This number will drop drastically.
+*   **Total Bytes Processed (The catch):** You might actually see this number go **UP** when using an index. Why? Because the index structure (clusters and centroids) is physically larger than the raw flat data. 
+    *   *Where `STORING` saves you:* If you don't use the `STORING` clause (Join Elimination), BigQuery processes the larger index *AND* then joins back to read the base table, doubling your bytes scanned. By storing the columns you need inside the index, BigQuery never touches the base table, capping your scan costs.
 
 ### 3. Inspect the Plan
 Run this in your CLI to see if the index was actually used:
