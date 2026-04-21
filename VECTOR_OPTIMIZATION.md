@@ -7,12 +7,12 @@ This guide shows you how to optimize vector searches so you aren't stuck with sl
 ### 1. Vector Indexes (ANN)
 By default, `VECTOR_SEARCH` is an exact search—it checks every single row. For large datasets, you need a **Vector Index**. This uses Approximate Nearest Neighbor (ANN) to find results way faster.
 
-*   **IVF:** Good for most cases, clusters your data.
-*   **TreeAH:** Uses Google's ScaNN algorithm. It's the best choice for large batches and high-performance needs.
+*   **IVF:** Good for most cases, clusters your data. This is what you should use for single-vector lookups (like searching for one specific account).
+*   **TreeAH:** Uses Google's ScaNN algorithm. **Crucial note:** TreeAH is *strictly* for large query batches. If you try to use TreeAH for a single-vector lookup, BigQuery's optimizer will actually refuse to use it and fall back to brute force. TreeAH also does *not* support Join Elimination.
 
 ### 2. Storing Clause
 When you build your index, use the `STORING` clause to keep frequently used columns (like IDs or types) inside the index itself.
-*   **Join Elimination:** If your query only asks for columns you've "stored," BigQuery grabs them directly from the index and skips the join to the base table entirely. This is a massive win for performance.
+*   **Join Elimination (IVF Only):** If you use an IVF index and your query only asks for columns you've "stored," BigQuery grabs them directly from the index and skips the join to the base table entirely. This is a massive win for performance.
 
 ### 3. Pre-filtering & Partition Pruning
 *   **Pre-filtering:** If you use a `WHERE` clause on a column included in the `STORING` clause, BigQuery filters the data *before* it even starts the vector math.
